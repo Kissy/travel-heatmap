@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Travel</title>
+    <link rel="stylesheet" href="//cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css"/>
+    <script src="//cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.rawgit.com/CreativeIT/getmdl-select/master/getmdl-select.min.css">
+    <script defer src="https://cdn.rawgit.com/CreativeIT/getmdl-select/master/getmdl-select.min.js"></script>
+
+    <style>
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+
+<!-- No header, and the drawer stays open on larger screens (fixed drawer). -->
+<div class="mdl-layout mdl-js-layout mdl-layout--fixed-drawer">
+    <div class="mdl-layout__drawer">
+        <span class="mdl-layout-title">Travel Heatmap</span>
+        <div class="mdl-grid">
+            <div class="mdl-cell mdl-cell--12-col">
+                <form action="#">
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label getmdl-select">
+                        <input class="mdl-textfield__input" id="travel-month" name="travel-month" type="text" readonly tabIndex="-1" value="January" data-val="1" />
+                        <label class="mdl-textfield__label" for="travel-month">Travel Month</label>
+                        <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu" for="travel-month">
+                            <li class="mdl-menu__item" data-val="0">January</li>
+                            <li class="mdl-menu__item" data-val="1">February</li>
+                            <li class="mdl-menu__item" data-val="2">March</li>
+                            <li class="mdl-menu__item" data-val="3">April</li>
+                            <li class="mdl-menu__item" data-val="4">May</li>
+                            <li class="mdl-menu__item" data-val="5">June</li>
+                            <li class="mdl-menu__item" data-val="6">July</li>
+                            <li class="mdl-menu__item" data-val="7">August</li>
+                            <li class="mdl-menu__item" data-val="8">September</li>
+                            <li class="mdl-menu__item" data-val="9">October</li>
+                            <li class="mdl-menu__item" data-val="10">November</li>
+                            <li class="mdl-menu__item" data-val="11">December</li>
+                        </ul>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <main class="mdl-layout__content">
+        <div class="page-content">
+            <div id="map"></div>
+        </div>
+    </main>
+</div>
+
+<script>
+    var _baseStyle = {
+        weight: 1,
+        opacity: 1,
+        dashArray: '',
+        fillOpacity: 0.2
+    };
+    var _emptyStyle = {
+        weight: 0,
+        opacity: 0,
+        color: 'rgba(0,0,0,0)',
+        dashArray: '',
+        fillOpacity: 0,
+        fillColor: "rgba(0,0,0,0)"
+    };
+    var _displayMonth = 0;
+    var _monthStyles = [];
+    _monthStyles[5] = {};
+    Object.assign(_monthStyles[5], _baseStyle, {color: "#4CAF50", fillcolor: "#4CAF50"});
+    _monthStyles[4] = {};
+    Object.assign(_monthStyles[4], _baseStyle, {color: "#8BC34A", fillcolor: "#8BC34A"});
+    _monthStyles[3] = {};
+    Object.assign(_monthStyles[3], _baseStyle, {color: "#FFEB3B", fillcolor: "#FFEB3B"});
+    _monthStyles[2] = {};
+    Object.assign(_monthStyles[2], _baseStyle, {color: "#FFC107", fillcolor: "#FFC107"});
+    _monthStyles[1] = {};
+    Object.assign(_monthStyles[1], _baseStyle, {color: "#FF9800", fillcolor: "#FF9800"});
+    var styleFunction = function (feature) {
+        var score = parseInt(feature.properties.score[_displayMonth], 10);
+        if (score >= 1 && score <= 5) {
+            return _monthStyles[score];
+        }
+        return _emptyStyle;
+    };
+
+    var map = L.map('map', {
+        zoomControl: true,
+        boxZoom: false,
+        doubleClickZoom: false,
+        minZoom: 3,
+        maxZoom: 5,
+        inertia: false
+    }).setView([18.5820101, -68.40547289999999], 3);
+
+    /*var tiles = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+        noWrap: true
+    });*/
+    var tiles = L.tileLayer('https://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.{ext}', {
+        attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        subdomains: 'abcd',
+        ext: 'png',
+        noWrap: true
+    });
+    tiles.addTo(map);
+
+    var geojson;
+    var xmlhttp = new XMLHttpRequest();
+    xmlhttp.onreadystatechange = function () {
+        if (xmlhttp.readyState === XMLHttpRequest.DONE) {
+            if (xmlhttp.status === 200) {
+                var data = JSON.parse(xmlhttp.responseText);
+                geojson = L.geoJson(data, {
+                    style: styleFunction
+                }).addTo(map);
+            } else {
+                alert('something else other than 200 was returned');
+            }
+        }
+    };
+
+    xmlhttp.open("GET", "countries-data.geo.json", true);
+    xmlhttp.send();
+
+    document.getElementById("travel-month").onchange = function() {
+        _displayMonth =  this.dataset['val'];
+        geojson.setStyle(styleFunction);
+    }
+</script>
+</body>
+</html>
